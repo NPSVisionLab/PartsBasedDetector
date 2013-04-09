@@ -109,19 +109,16 @@ int main(int argc, char** argv) {
     printf("Detection time: %f\n", ((double)getTickCount() - t)/getTickFrequency());
     printf("Number of candidates: %ld\n", candidates.size());
 
-    // display the best candidates
-    Visualize visualize(model->name());
-    SearchSpacePruning<float> ssp;
-    Mat canvas;
-    if (candidates.size() > 0) {
-        Candidate::sort(candidates);
-        candidates.resize(1);
-        //Candidate::nonMaximaSuppression(im, candidates, 0.2);
-        visualize.candidates(im, candidates, canvas, false);
-        visualize.image(canvas);
-        cvtColor(canvas, im, CV_RGB2BGR);
-        cv::imwrite(std::string(argv[2]) + ".cpp.png", im);
-        waitKey();
-    }
-    return 0;
+	// display the best candidates
+	Visualize visualize(model->name());
+	SearchSpacePruning<float> ssp;
+        Mat canvas;
+	if (candidates.size() > 0) {
+	    Candidate::sort(candidates);
+	    //Candidate::nonMaximaSuppression(im, candidates, 0.2);
+	    visualize.candidates(im, candidates, canvas, true);
+            visualize.image(canvas);
+	    waitKey();
+	}
+	return 0;
 }
