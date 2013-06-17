@@ -46,7 +46,7 @@
 #include "Candidate.hpp"
 #include "FileStorageModel.hpp"
 #ifdef WITH_MATLABIO
-	#include "MatlabIOModel.hpp"
+    #include "MatlabIOModel.hpp"
 #endif
 #include "Visualize.hpp"
 #include "types.hpp"
@@ -58,56 +58,56 @@ using namespace std;
 
 int main(int argc, char** argv) {
 
-	// check arguments
-	if (argc != 3 && argc != 4) {
-		printf("Usage: PartsBasedDetector model_file image_file [depth_file]\n");
-		exit(-1);
-	}
+    // check arguments
+    if (argc != 3 && argc != 4) {
+        printf("Usage: PartsBasedDetector model_file image_file [depth_file]\n");
+        exit(-1);
+    }
 
-	// determine the type of model to read
-	boost::scoped_ptr<Model> model;
-	string ext = boost::filesystem::path(argv[1]).extension().string();
-	if (ext.compare(".xml") == 0 || ext.compare(".yaml") == 0) {
-		model.reset(new FileStorageModel);
-	}
+    // determine the type of model to read
+    boost::scoped_ptr<Model> model;
+    string ext = boost::filesystem::path(argv[1]).extension().string();
+    if (ext.compare(".xml") == 0 || ext.compare(".yaml") == 0) {
+        model.reset(new FileStorageModel);
+    }
 #ifdef WITH_MATLABIO
-	else if (ext.compare(".mat") == 0) {
-		model.reset(new MatlabIOModel);
-	}
+    else if (ext.compare(".mat") == 0) {
+        model.reset(new MatlabIOModel);
+    }
 #endif
-	else {
-		printf("Unsupported model format: %s\n", ext.c_str());
-		exit(-2);
-	}
-	bool ok = model->deserialize(argv[1]);
-	if (!ok) {
-		printf("Error deserializing file\n");
-		exit(-3);
-	}
+    else {
+        printf("Unsupported model format: %s\n", ext.c_str());
+        exit(-2);
+    }
+    bool ok = model->deserialize(argv[1]);
+    if (!ok) {
+        printf("Error deserializing file\n");
+        exit(-3);
+    }
 
-	// create the PartsBasedDetector and distribute the model parameters
-	PartsBasedDetector<float> pbd;
-	pbd.distributeModel(*model);
+    // create the PartsBasedDetector and distribute the model parameters
+    PartsBasedDetector<float> pbd;
+    pbd.distributeModel(*model);
 
-	// load the image from file
-	Mat_<float> depth;
-	Mat im = imread(argv[2]);
+    // load the image from file
+    Mat_<float> depth;
+    Mat im = imread(argv[2]);
         if (im.empty()) {
             printf("Image not found or invalid image format\n");
             exit(-4);
         }
-	if (argc == 4) {
-		depth = imread(argv[3], CV_LOAD_IMAGE_ANYDEPTH);
-		// convert the depth image from mm to m
-		depth = depth / 1000.0f;
-	}
+    if (argc == 4) {
+        depth = imread(argv[3], CV_LOAD_IMAGE_ANYDEPTH);
+        // convert the depth image from mm to m
+        depth = depth / 1000.0f;
+    }
 
-	// detect potential candidates in the image
-	double t = (double)getTickCount();
-	vector<Candidate> candidates;
-	pbd.detect(im, depth, candidates);
-	printf("Detection time: %f\n", ((double)getTickCount() - t)/getTickFrequency());
-	printf("Number of candidates: %ld\n", candidates.size());
+    // detect potential candidates in the image
+    double t = (double)getTickCount();
+    vector<Candidate> candidates;
+    pbd.detect(im, depth, candidates);
+    printf("Detection time: %f\n", ((double)getTickCount() - t)/getTickFrequency());
+    printf("Number of candidates: %ld\n", candidates.size());
 
 	// display the best candidates
 	Visualize visualize(model->name());

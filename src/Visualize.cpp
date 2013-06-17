@@ -38,6 +38,7 @@
 
 #include <cstdio>
 #include <iostream>
+#include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <boost/lexical_cast.hpp>
 #include "Visualize.hpp"
@@ -83,7 +84,14 @@ void Visualize::candidates(const Mat& im, const vectorCandidate& candidates, uns
 		for (unsigned int p = 0; p < candidate.parts().size(); ++p) {
 			Rect box = candidate.parts()[p];
 			string confidence  = boost::lexical_cast<string>(candidate.confidence()[p]);
-			rectangle(canvas, box, colors[p], LINE_THICKNESS);
+			//rectangle(canvas, box, colors[p], LINE_THICKNESS);
+            cv::circle(
+                canvas,
+                cv::Point2f(box.x + box.width / 2.0, box.y + box.height / 2.0),
+                3,
+                cv::Scalar(0, 255, 0, 255),
+                CV_FILLED
+            );
 			if (display_confidence && p == 0) putText(canvas, confidence, Point(box.x, box.y-5), FONT_HERSHEY_SIMPLEX, 0.5f, black, 2);
 		}
 		//rectangle(canvas, candidate.boundingBox(), Scalar(255, 0, 0), LINE_THICKNESS);
