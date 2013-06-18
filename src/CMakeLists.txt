@@ -17,38 +17,27 @@ set(LIBS        ${Boost_LIBRARIES}
                 ${OpenCV_LIBS}
 )
 
-# with cvmatio support
-if (cvmatio_FOUND)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITH_MATLABIO")
-    set(SRC_FILES ${SRC_FILES} MatlabIOModel.cpp)
-    set(LIBS ${LIBS} ${ZLIB_LIBRARIES} ${cvmatio_LIBRARIES})
-    add_executable(ModelTransfer ModelTransfer.cpp FileStorageModel.cpp MatlabIOModel.cpp)
-    target_link_libraries(ModelTransfer ${LIBS})
-    install(TARGETS ModelTransfer
-            RUNTIME DESTINATION ${PROJECT_SOURCE_DIR}/bin
-    )
-endif()
 
 # as a library (always)
 if(MSVC)
     # no symbol exported, so make static library instead
-    add_library(${PROJECT_NAME}_lib STATIC ${SRC_FILES})
+    add_library(${PROJECT_NAME} STATIC ${SRC_FILES})
 else()
-    add_library(${PROJECT_NAME}_lib SHARED ${SRC_FILES})
+    add_library(${PROJECT_NAME} SHARED ${SRC_FILES})
 endif()
-target_link_libraries(${PROJECT_NAME}_lib ${LIBS})
-set_target_properties(${PROJECT_NAME}_lib PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
-install(TARGETS ${PROJECT_NAME}_lib 
-        DESTINATION ${PROJECT_SOURCE_DIR}/lib
+target_link_libraries(${PROJECT_NAME} ${LIBS})
+set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
+install(TARGETS ${PROJECT_NAME} 
+        DESTINATION ${PROJECT_SOURCE_DIR}
 )
 
 # as an executable
-if (BUILD_EXECUTABLE)
+if (BUILD_WITH_DPM_INCLUDING_EXECUTABLE)
     set(SRC_FILES demo.cpp)
-    add_executable(${PROJECT_NAME}_bin ${SRC_FILES})
-    target_link_libraries(${PROJECT_NAME}_bin ${LIBS} ${PROJECT_NAME}_lib)
-    set_target_properties(${PROJECT_NAME}_bin PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
-    install(TARGETS ${PROJECT_NAME}_bin
+    add_executable(${PROJECT_NAME}_DEMO ${SRC_FILES})
+    target_link_libraries(${PROJECT_NAME}_DEMO ${LIBS} ${PROJECT_NAME})
+    set_target_properties(${PROJECT_NAME}_DEMO PROPERTIES OUTPUT_NAME ${PROJECT_NAME}_DEMO)
+    install(TARGETS ${PROJECT_NAME}_DEMO
             RUNTIME DESTINATION ${PROJECT_SOURCE_DIR}/bin
     )
 endif()
