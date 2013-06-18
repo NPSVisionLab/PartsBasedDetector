@@ -32,7 +32,7 @@ install(TARGETS ${PROJECT_NAME}
 )
 
 # as an executable
-if (BUILD_WITH_DPM_INCLUIDNG_EXECUTABLE)
+if (BUILD_WITH_DPM_INCLUDING_EXECUTABLE)
     set(SRC_FILES demo.cpp)
     add_executable(${PROJECT_NAME}_DEMO ${SRC_FILES})
     target_link_libraries(${PROJECT_NAME}_DEMO ${LIBS} ${PROJECT_NAME})

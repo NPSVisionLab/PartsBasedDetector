@@ -7,8 +7,8 @@ cmake_minimum_required(VERSION 2.8.5)
 # -----------------------------------------------
 # USER DEFINED VARIABLES
 # -----------------------------------------------
-option(BUILD_WITH_DPM_INCLUIDNG_EXECUTABLE "Build as executable to test functionality"                     ON)
-option(BUILD_WITH_DPM_INCLUIDNG_OPENMP      "Build with OpenMP support for multithreading"                  OFF)
+option(BUILD_WITH_DPM_INCLUDING_EXECUTABLE "Build as executable to test functionality"                     ON)
+option(BUILD_WITH_DPM_INCLUDING_OPENMP      "Build with OpenMP support for multithreading"                  OFF)
 # COMPILER FLAGS
 # -----------------------------------------------
 
@@ -23,7 +23,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 # add OpenMP support
-if (BUILD_WITH_DPM_INCLUIDNG_OPENMP)
+if (BUILD_WITH_DPM_INCLUDING_OPENMP)
     find_package(OpenMP)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   ${OpenMP_C_FLAGS}")
