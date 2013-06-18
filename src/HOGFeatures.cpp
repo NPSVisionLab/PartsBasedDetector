@@ -116,7 +116,7 @@ void HOGFeatures<T>::pyramid(const Mat& im, vectorMat& pyrafeatures) {
 	#ifdef _OPENMP
 	#pragma omp parallel for
 	#endif
-	for (unsigned int i = 0; i < interval_; ++i) {
+	for (int i = 0; i < interval_; ++i) {
 		Mat scaled;
 		resize(im, scaled, imsize * (1.0f/pow(sfactor_,(int)i)));
 		pyraimages[i] = scaled;
@@ -135,7 +135,7 @@ void HOGFeatures<T>::pyramid(const Mat& im, vectorMat& pyrafeatures) {
 	#ifdef _OPENMP
 	#pragma omp parallel for
 	#endif
-	for (unsigned int n = 0; n < nscales_; ++n) {
+	for (int n = 0; n < nscales_; ++n) {
 		Mat feature;
 		Mat padded;
 		switch (im.depth()) {

@@ -121,10 +121,10 @@ void DynamicProgram<T>::min_with_backtracking(Parts& parts, vector2DMat& scores,
 	#ifdef _OPENMP
 	#pragma omp parallel for
 	#endif
-	for (unsigned int nc = 0; nc < nscales*ncomponents; ++nc) {
+	for (int nc = 0; nc < nscales*ncomponents; ++nc) {
 
 		// calculate the inner loop variables from the dual variables
-		const unsigned int n = floor(nc / ncomponents);
+		const unsigned int n = floor((double)(nc/ncomponents));
 		const unsigned int c = nc % ncomponents;
 
 		// allocate the inner loop variables
@@ -253,10 +253,10 @@ void DynamicProgram<T>::min(Parts& parts, vector2DMat& scores, vector4DMat& Ix, 
 	#ifdef _OPENMP
 	#pragma omp parallel for
 	#endif
-	for (unsigned int nc = 0; nc < nscales*ncomponents; ++nc) {
+	for (int nc = 0; nc < nscales*ncomponents; ++nc) {
 
 		// calculate the inner loop variables from the dual variables
-		const unsigned int n = floor(nc / ncomponents);
+		const unsigned int n = floor((double)(nc / ncomponents));
 		const unsigned int c = nc % ncomponents;
 
 		// allocate the inner loop variables
@@ -366,7 +366,7 @@ void DynamicProgram<T>::argmin(Parts& parts, const vector2DMat& rootv, const vec
 	#ifdef _OPENMP
 	#pragma omp parallel for
 	#endif
-	for (unsigned int n = 0; n < nscales; ++n) {
+	for (int n = 0; n < nscales; ++n) {
 		T scale = scales[n];
 		for (unsigned int c = 0; c < parts.ncomponents(); ++c) {
 

@@ -54,7 +54,7 @@ void SearchSpacePruning<T>::filterResponseByDepth(vector2DMat& pdfs, const vecto
 #ifdef _OPENMP
 	#pragma omp parallel for
 #endif
-	for (unsigned int nf = 0; nf < N*F; ++nf) {
+	for (int nf = 0; nf < N*F; ++nf) {
 		const unsigned int n = nf / F;
 		const unsigned int f = nf % F;
 

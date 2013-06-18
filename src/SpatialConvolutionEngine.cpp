@@ -82,7 +82,7 @@ void SpatialConvolutionEngine::pdf(const vectorMat& features, vector2DMat& respo
 	omp_set_num_threads(8);
 	#pragma omp parallel for
 #endif
-	for (unsigned int n = 0; n < N; ++n) {
+	for (int n = 0; n < N; ++n) {
 		for (unsigned int m = 0; m < M; ++m) {
 			Mat response;
 			convolve(features[m], filters_[n], response, flen_);
