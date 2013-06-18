@@ -2,7 +2,7 @@
 
 project(dpm)
 # dpm CMakeLists.txt
-cmake_minimum_required(VERSION 2.8.5)
+cmake_minimum_required(VERSION 2.6)
 
 # -----------------------------------------------
 # USER DEFINED VARIABLES
@@ -45,7 +45,11 @@ endif ()
 # find the dependencies
 #include(cmake/FindEigen3.cmake)
 find_package(Boost COMPONENTS system filesystem signals REQUIRED)
-find_package(OpenCV REQUIRED)
+FIND_PACKAGE( OpenCV 2.4 REQUIRED
+    core imgproc highgui ml features2d nonfree objdetect calib3d
+  HINTS
+    ${CMAKE_SOURCE_DIR}/3rdparty/opencv
+)
 #find_package(Eigen)
 #find_package(Eigen REQUIRED)
 #include_directories(${EIGEN_INCLUDE_DIRS})
@@ -53,8 +57,7 @@ find_package(OpenCV REQUIRED)
 #                -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET)
 
 # include the dependencies
-include_directories(SYSTEM  ${OPENCV_INCLUDE_DIRS}     
-							${Boost_INCLUDE_DIRS}
+include_directories(SYSTEM  ${OPENCV_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS}
 )
 
 include_directories(include)
@@ -65,7 +68,6 @@ include_directories(include)
 # -----------------------------------------------
 # add the main executable/library
 ADD_SUBDIRECTORY(src)
-#ADD_SUBDIRECTORY(lib)
 ADD_SUBDIRECTORY(detectorService)
 
 
