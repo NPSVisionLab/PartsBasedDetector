@@ -15,7 +15,7 @@ SET(HEADER_FILES
 
 SET(INCLUDE_DIRS
     .
-    ${CMAKE_CURRENT_SOURCE_DIR}/../lib/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CVAC_INCLUDE_DIR}
     ${ICE_INCLUDE}
     ${CMAKE_CURRENT_BINARY_DIR}#for the generated slice files
@@ -31,7 +31,7 @@ ADD_LIBRARY(DPMServerDetection SHARED
 
 TARGET_LINK_LIBRARIES(DPMServerDetection	
     dpm
-	utils
+    utils
     ${ICE_LIBRARIES} ${ICE_BOX_LIBRARY}
     ${OpenCV_LIBS}
     )
