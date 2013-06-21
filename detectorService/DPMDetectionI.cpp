@@ -78,60 +78,52 @@ DPMDetectionI::~DPMDetectionI()
 {
 	fInitialized = false;
 }
-                          // Client verbosity
+                          
 void DPMDetectionI::initialize(::Ice::Int verbosity, const ::DetectorData& data, const ::Ice::Current& current)
 {	
-	// Get the default CVAC data directory as defined in the config file
-    m_CVAC_DataDir = mServiceMan->getDataDir();	
-	
+    // Get the default CVAC data directory as defined in the config file
+    m_CVAC_DataDir = mServiceMan->getDataDir();
 
-	std::string archiveFilePath; 
-	if ((data.file.directory.relativePath.length() > 1 && data.file.directory.relativePath[1] == ':' )||
-		data.file.directory.relativePath[0] == '/' ||
-		data.file.directory.relativePath[0] == '\\')
-	{  // absolute path
-		archiveFilePath = data.file.directory.relativePath + "/" + data.file.filename;
-	} 
-	else
-	{ // prepend our prefix
-		archiveFilePath = (m_CVAC_DataDir + "/" + data.file.directory.relativePath + "/" + data.file.filename);
-	}
+    string expandedSubfolder = "";
+    string filename = "";
 
-	std::vector<std::string> fileNameStrings =  expandSeq_fromFile(archiveFilePath, getName(current));
+    // Use utils un-compression to get zip file names
+    // Filepath is relative to 'CVAC_DataDir'
+    std::string archiveFilePath; 
+    if ( (data.file.directory.relativePath.length() > 1 
+      && data.file.directory.relativePath[1] == ':' )||
+      data.file.directory.relativePath[0] == '/' ||
+      data.file.directory.relativePath[0] == '\\')
+    {  // absolute path
+      // TODO: don't permit absolute paths!  get rid of if/else and just
+      // check in getFSPath that it's relative
+      archiveFilePath = data.file.directory.relativePath + "/" + data.file.filename;
+    } 
+    else
+    { // prepend our prefix, this routine is copied from getFSPath function in BowICEI.cpp
+      if (data.file.directory.relativePath.empty())
+        archiveFilePath = m_CVAC_DataDir+"/"+data.file.filename;
+      else
+        archiveFilePath = m_CVAC_DataDir+"/"+data.file.directory.relativePath+"/"+data.file.filename;
+    }
 
-	// Need to strip off extra zeros
-	std::string directory = std::string(getCurrentWorkingDirectory().c_str());
-	std::string name = getName(current);
-	std::string dpath;
-	dpath.reserve(directory.length() + name.length() + 3);
-	dpath += directory;
-	dpath += std::string("/");
-	dpath += ".";
-	dpath += name;
+    expandedSubfolder = archiveFilePath + "_";  //getName(current)
+    std::vector<std::string> fileNameStrings =
+      expandSeq_fromFile(archiveFilePath, expandedSubfolder);
 
-	
-	ifstream infile;
-	string _fulllogfile = dpath + "/" + logfile_detectorData;
-	infile.open(_fulllogfile.c_str());
-	if(!infile.is_open())
-	{
-		localAndClientMsg(VLogger::WARN, NULL, "Failed to initialize because the file %s does not exist\n",_fulllogfile.c_str());
-		return;
-	}
+    filename = fileNameStrings[0];  //only the first xml file will be used    
 
-	string _aline;
-	getline(infile,_aline);
-	boost::scoped_ptr<Model> model;	
-	model.reset(new FileStorageModel);		
-	string _fullline = dpath+ "/" + _aline;
-	if(!model->deserialize(_fullline)) 
-	{
-		localAndClientMsg(VLogger::WARN, NULL, "Failed to initialize because the file %s has a problem\n",_fullline.c_str());
-		return;
-	}
+    boost::scoped_ptr<Model> model;	
+    model.reset(new FileStorageModel);		
+    string _fullline = expandedSubfolder+ "/" + filename;
+    if(!model->deserialize(_fullline)) 
+    {
+      localAndClientMsg(VLogger::WARN, NULL, "Failed to initialize because the file %s has a problem\n",_fullline.c_str());
+      return;
+    }
 
-	pbd.distributeModel(*model);
-	fInitialized = true;	
+    pbd.distributeModel(*model);
+    fInitialized = true;	
 }
 
 
