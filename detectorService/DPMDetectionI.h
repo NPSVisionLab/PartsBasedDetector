@@ -55,8 +55,6 @@
 #include <Visualize.hpp> //only for visualization of results
 
 
-#define logfile_detectorData "usageOrder.txt"
-
 class DPMDetectionI : public cvac::Detector
 {
 public:
