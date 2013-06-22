@@ -88,19 +88,20 @@ void PartsBasedDetector<T>::detect(const Mat& im, const Mat& depth, vectorCandid
 	dp_.min_with_backtracking(parts_, pdf, Ix, Iy, Ik, rootv, rooti, features_->scales(), candidates);
 	//printf("DP min time: %f\n", ((double)getTickCount() - t)/getTickFrequency());
 
-	// suppress non-maximal candidates
-	//t = (double)getTickCount();
-	//ssp_.nonMaxSuppression(rootv, features_->scales());
-	//printf("non-maxima suppression time: %f\n", ((double)getTickCount() - t)/getTickFrequency());
-
 	// walk back down the tree to find the part locations
 	//t = (double)getTickCount();
 	// dp_.argmin(parts_, rootv, rooti, features_->scales(), Ix, Iy, Ik, candidates);
 	//printf("DP argmin time: %f\n", ((double)getTickCount() - t)/getTickFrequency());
 
-	if (!depth.empty()) {
+	// suppress non-maximal candidates
+	//t = (double)getTickCount();
+	Candidate::nonMaximaSuppression(im, candidates, 0.4);
+	//ssp_.nonMaxSuppression(rootv, features_->scales());
+	//printf("non-maxima suppression time: %f\n", ((double)getTickCount() - t)/getTickFrequency());
+
+//	if (!depth.empty()) {
 		//ssp_.filterCandidatesByDepth(parts_, candidates, depth, 0.03);
-	}
+//	}
 
 }
 
