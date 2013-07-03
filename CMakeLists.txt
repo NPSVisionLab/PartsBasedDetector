@@ -5,11 +5,11 @@ cmake_minimum_required(VERSION 2.6)
 # -----------------------------------------------
 # USER DEFINED VARIABLES
 # -----------------------------------------------
-OPTION(BUILD_WITH_DPM "Enables the projects that depend on the DPM library" OFF)
+OPTION(BUILD_WITH_DPM "Enables the projects that depend on the DPM library" ON)
 
 if (BUILD_WITH_DPM)
 
-    option(BUILD_WITH_DPM_INCLUDING_EXECUTABLE "Build as executable to test functionality"                     ON)
+    option(BUILD_WITH_DPM_INCLUDING_EXECUTABLE "Build as executable to test functionality"                     OFF)
     option(BUILD_WITH_DPM_INCLUDING_OPENMP     "Build with OpenMP support for multithreading"                  OFF)
 
     # -----------------------------------------------
