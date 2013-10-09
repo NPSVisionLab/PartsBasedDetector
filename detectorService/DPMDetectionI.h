@@ -65,22 +65,25 @@ public:
 
 
 public:
-    virtual void initialize(::Ice::Int verbosity,const ::cvac::DetectorData& data,const ::Ice::Current& current);
-    virtual void process(const Ice::Identity &client,const ::cvac::RunSet& runset,const ::Ice::Current& current);
-    virtual bool isInitialized(const ::Ice::Current& current);
-    virtual void destroy(const ::Ice::Current& current);
+    virtual void process(const Ice::Identity &client, const ::cvac::RunSet& runset,
+                         const ::cvac::FilePath& model, const ::cvac::DetectorProperties& props,
+                         const ::Ice::Current& current);
+    virtual bool cancel(const Ice::Identity &client, const ::Ice::Current& current);
     virtual std::string getName(const ::Ice::Current& current);
     virtual std::string getDescription(const ::Ice::Current& current);
-    void setVerbosity(::Ice::Int verbosity, const ::Ice::Current& current);
-
-    virtual cvac::DetectorData createCopyOfDetectorData(const ::Ice::Current& current);
-    virtual cvac::DetectorPropertiesPrx getDetectorProperties(const ::Ice::Current& current);
+    virtual ::cvac::DetectorProperties getDetectorProperties(const ::Ice::Current& current);
+    std::string getName();
+    bool checkExistenceDetectorData();
 
 private:
     cvac::ServiceManager *mServiceMan;
     PartsBasedDetector<double> pbd;
-    bool   fInitialized;    
-    static cvac::ResultSetV2 processSingleImg(cvac::DetectorPtr detector,const char* fullfilename);
+    cvac::DetectorProperties props;
+    
+    static cvac::ResultSet processSingleImg(cvac::DetectorPtr detector,const char* fullfilename);    
+    std::string getPathDetectorData();
+    bool initialize(const ::cvac::DetectorProperties& props,
+                    const ::cvac::FilePath& model, const ::Ice::Current& current);
 };
 
 #endif //_DPMDetectionI_H__

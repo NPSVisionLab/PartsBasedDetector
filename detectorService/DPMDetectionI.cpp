@@ -45,6 +45,8 @@
 #include <util/processRunSet.h>
 #include <util/FileUtils.h>
 #include <util/DetectorDataArchive.h>
+
+using namespace Ice;
 using namespace cvac;
 
 
@@ -52,119 +54,145 @@ using namespace cvac;
 // This is called by IceBox to get the service to communicate with.
 extern "C"
 {
-	//
-	// ServiceManager handles all the icebox interactions so we construct
-    // it and set a pointer to our detector.
-	//
-	ICE_DECLSPEC_EXPORT IceBox::Service* create(Ice::CommunicatorPtr communicator)
-	{
-        ServiceManager *sMan = new ServiceManager();
-        DPMDetectionI *dpm = new DPMDetectionI(sMan);
-        sMan->setService(dpm, "DPM_Detector");
-        return (::IceBox::Service*) sMan->getIceService();
-	}
+  /**
+   * Create the detector service via a ServiceManager.  The 
+   * ServiceManager handles all the icebox interactions.  Pass the constructed
+   * detector instance as well as the service name to the ServiceManager.
+   * The name is obtained from the config.icebox file as follows. Given this
+   * entry:
+   * IceBox.Service.BOW_Detector=bowICEServer:create --Ice.Config=config.service
+   * ... the name of the service is BOW_Detector.
+   */
+  ICE_DECLSPEC_EXPORT IceBox::Service* create(CommunicatorPtr communicator)
+  {
+    // TODO: get name from icebox.config file via the "start" function in ServiceMan
+    ServiceManager *sMan = new ServiceManager();
+    DPMDetectionI *dpm = new DPMDetectionI(sMan);    
+    sMan->setService(dpm, dpm->getName());
+    return (::IceBox::Service*) sMan->getIceService();
+  }
 }
 
 
 ///////////////////////////////////////////////////////////////////////////////
 
 DPMDetectionI::DPMDetectionI(ServiceManager *sman)
-: fInitialized(false)
 {
     mServiceMan = sman;
 }
 
 DPMDetectionI::~DPMDetectionI()
 {
-	fInitialized = false;
+}
+
+bool DPMDetectionI::checkExistenceDetectorData()
+{    
+  std::string tFilePath = getPathDetectorData();
+    if(fileExists(tFilePath))
+      return true;
+    else
+      return false;
+}
+
+std::string DPMDetectionI::getPathDetectorData()
+{
+    std::string tSearchStr = getName() + ".DetectorData"; //"DPM_ShipDetector_v1": this name should be changed manually in this file.
+    PropertiesPtr props = Application::communicator()->getProperties();
+    return props->getProperty(tSearchStr); //Should it be an absolute? 
 }
                           
-void DPMDetectionI::initialize(::Ice::Int verbosity, const ::DetectorData& data, const ::Ice::Current& current)
-{	
-    // Get the default CVAC data directory as defined in the config file
-    m_CVAC_DataDir = mServiceMan->getDataDir();
+bool DPMDetectionI::initialize(const DetectorProperties& props, const FilePath& trainedModel,
+                               const Current& current)
+{
+    std::string expandedSubfolder;
+    std::string archiveFilePath;
+    std::vector<std::string> fileNameforUsageOrders;
+    std::string fileNameToBeUsed;
 
-    string expandedSubfolder = "";
-    string filename = "";
+    // todo: initialize props
 
-    // Use utils un-compression to get zip file names
-    // Filepath is relative to 'CVAC_DataDir'
-    std::string archiveFilePath; 
-    if ( (data.file.directory.relativePath.length() > 1 
-      && data.file.directory.relativePath[1] == ':' )||
-      data.file.directory.relativePath[0] == '/' ||
-      data.file.directory.relativePath[0] == '\\')
-    {  // absolute path
-      // TODO: don't permit absolute paths!  get rid of if/else and just
-      // check in getFSPath that it's relative
-      archiveFilePath = data.file.directory.relativePath + "/" + data.file.filename;
-    } 
-    else
-    { // prepend our prefix, this routine is copied from getFSPath function in BowICEI.cpp
-      if (data.file.directory.relativePath.empty())
-        archiveFilePath = m_CVAC_DataDir+"/"+data.file.filename;
-      else
-        archiveFilePath = m_CVAC_DataDir+"/"+data.file.directory.relativePath+"/"+data.file.filename;
-    }
-
-    expandedSubfolder = archiveFilePath + "_";  //getName(current)
-    std::vector<std::string> fileNameStrings =
-      expandSeq_fromFile(archiveFilePath, expandedSubfolder);
-
-    filename = fileNameStrings[0];  //only the first xml file will be used    
-
-    boost::scoped_ptr<Model> model;	
-    model.reset(new FileStorageModel);		
-    string _fullline = expandedSubfolder+ "/" + filename;
-    if(!model->deserialize(_fullline)) 
+    if(trainedModel.filename.empty())  //if there is no specific detectorData
     {
-      localAndClientMsg(VLogger::WARN, NULL, "Failed to initialize because the file %s has a problem\n",_fullline.c_str());
-      return;
+      if(checkExistenceDetectorData())
+      {
+        archiveFilePath = getPathDetectorData();
+        expandedSubfolder = getFileDirectory(archiveFilePath) + "_";  
+        // TODO        fileNameforUsageOrders = expandSeq_fromFile(archiveFilePath, expandedSubfolder);
+        fileNameToBeUsed = fileNameforUsageOrders[0];  //only the first xml file will be used
+      }
+      else
+      {
+        localAndClientMsg(VLogger::ERROR, NULL, "Failed to initialize because there is no detector data\n");
+        return false;
+      }
+    }
+    else  //if detectorData is not empty
+    {
+      // Get the default CVAC data directory as defined in the config file
+      m_CVAC_DataDir = mServiceMan->getDataDir();
+
+      // Use utils un-compression to get zip file names
+      // Filepath is relative to 'CVAC_DataDir'     
+      if ( (trainedModel.directory.relativePath.length() > 1 
+        && trainedModel.directory.relativePath[1] == ':' )||
+        trainedModel.directory.relativePath[0] == '/' ||
+        trainedModel.directory.relativePath[0] == '\\')
+      {  // absolute path
+        // TODO: don't permit absolute paths!  get rid of if/else and just
+        // check in getFSPath that it's relative
+        archiveFilePath = trainedModel.directory.relativePath + "/" + trainedModel.filename;
+      } 
+      else
+      { // prepend our prefix, this routine is copied from getFSPath function in BowICEI.cpp
+        if (trainedModel.directory.relativePath.empty())
+          archiveFilePath = m_CVAC_DataDir+"/"+trainedModel.filename;
+        else
+          archiveFilePath = m_CVAC_DataDir+"/"+trainedModel.directory.relativePath+"/"+trainedModel.filename;
+      }
+
+      expandedSubfolder = archiveFilePath + "_";  //getName(current)
+      // TODO      fileNameforUsageOrders = expandSeq_fromFile(archiveFilePath, expandedSubfolder);
+      fileNameToBeUsed = fileNameforUsageOrders[0];  //only the first xml file will be used          
     }
 
-    pbd.distributeModel(*model);
-    fInitialized = true;	
+    boost::scoped_ptr<Model> fsmodel;	
+    fsmodel.reset(new FileStorageModel);		
+    std::string tStrXML = expandedSubfolder+ "/" + fileNameToBeUsed;
+    if(!fsmodel->deserialize(tStrXML)) 
+    {
+      localAndClientMsg(VLogger::ERROR, NULL, "Failed to initialize because the file %s has a problem\n",
+                        tStrXML.c_str());
+      return false;
+    }
+
+    pbd.distributeModel(*fsmodel);
+    return true;
 }
 
 
 
-bool DPMDetectionI::isInitialized(const ::Ice::Current& current)
+std::string DPMDetectionI::getName(const Current& current)
 {
-	return fInitialized;
+  return getName();
 }
- 
-void DPMDetectionI::destroy(const ::Ice::Current& current)
-{
-	fInitialized = false;
-}
-std::string DPMDetectionI::getName(const ::Ice::Current& current)
+
+std::string DPMDetectionI::getName()
 {
 	return "DPM_Detector";
 }
-std::string DPMDetectionI::getDescription(const ::Ice::Current& current)
+std::string DPMDetectionI::getDescription(const Current& current)
 {
-	return "Deformable Parts Model detector";
+	return "Deformable Parts Model";
 }
 
-void DPMDetectionI::setVerbosity(::Ice::Int verbosity, const ::Ice::Current& current)
-{
-
-}
-
-DetectorData DPMDetectionI::createCopyOfDetectorData(const ::Ice::Current& current)
+DetectorProperties DPMDetectionI::getDetectorProperties(const Current& current)
 {	
-	DetectorData data;
-	return data;
+	return props;
 }
 
-DetectorPropertiesPrx DPMDetectionI::getDetectorProperties(const ::Ice::Current& current)
+ResultSet DPMDetectionI::processSingleImg(DetectorPtr detector,const char* fullfilename)
 {	
-	return NULL;
-}
-
-ResultSetV2 DPMDetectionI::processSingleImg(DetectorPtr detector,const char* fullfilename)
-{	
-	ResultSetV2 _resSet;	
+	ResultSet _resSet;	
 
 	// Detail the current file being processed (DEBUG_1)
 	std::string _ffullname = std::string(fullfilename);
@@ -205,16 +233,31 @@ ResultSetV2 DPMDetectionI::processSingleImg(DetectorPtr detector,const char* ful
 	return _resSet;
 }
 
-//void DPMDetectionI::process(const ::DetectorCallbackHandlerPrx& callbackHandler,const ::RunSet& runset,const ::Ice::Current& current)
-void DPMDetectionI::process(const Ice::Identity &client,const ::RunSet& runset,const ::Ice::Current& current)
+void DPMDetectionI::process(const Identity &client,const RunSet& runset,
+                            const FilePath& model, const DetectorProperties& props,
+                            const Current& current)
 {
-	DetectorCallbackHandlerPrx _callback = DetectorCallbackHandlerPrx::uncheckedCast(current.con->createProxy(client)->ice_oneway());
+  DetectorCallbackHandlerPrx _callback = DetectorCallbackHandlerPrx::uncheckedCast(
+      current.con->createProxy(client)->ice_oneway());
   DoDetectFunc func = DPMDetectionI::processSingleImg;
 
+  bool initialized = this->initialize( props, model, current );
+  if (!initialized)
+  {
+    localAndClientMsg(VLogger::ERROR, NULL, "Detector not initialized, not processing.");
+    return;
+  }
+  
   try {
     processRunSet(this, _callback, func, runset, m_CVAC_DataDir, mServiceMan);
   }
   catch (exception e) {
     localAndClientMsg(VLogger::ERROR, NULL, "$$$ Detector could not process given file-path.");
   }
+}
+
+bool DPMDetectionI::cancel(const Identity &client, const Current& current)
+{
+  localAndClientMsg(VLogger::WARN, NULL, "cancel not implemented.");
+  return false;
 }
