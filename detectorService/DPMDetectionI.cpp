@@ -45,6 +45,7 @@
 #include <util/processRunSet.h>
 #include <util/FileUtils.h>
 #include <util/DetectorDataArchive.h>
+#include <util/ServiceManI.h>
 
 using namespace Ice;
 using namespace cvac;
@@ -65,42 +66,92 @@ extern "C"
    */
   ICE_DECLSPEC_EXPORT IceBox::Service* create(CommunicatorPtr communicator)
   {
-    // TODO: get name from icebox.config file via the "start" function in ServiceMan
-    ServiceManager *sMan = new ServiceManager();
-    DPMDetectionI *dpm = new DPMDetectionI(sMan);    
-    sMan->setService(dpm, dpm->getName());
-    return (::IceBox::Service*) sMan->getIceService();
+    DPMDetectionI *dpm = new DPMDetectionI();
+    ServiceManagerI *sMan = new ServiceManagerI( dpm );
+    dpm->setServiceManager( sMan );
+
+    // check if the config.service file contains a trained model; if so, read it.
+    string modelfile;// = sMan->getModelFileFromConfig();
+    if (!modelfile.empty())
+    {
+      bool success = dpm->readModelFile( modelfile );
+      if (!success)
+      {
+        localAndClientMsg(VLogger::ERROR, NULL, "Failed to initialize because trained model "
+                          "specified in config file cannot be found: %s\n", modelfile.c_str());
+        delete sMan;
+        delete dpm;
+        return NULL;
+      }
+    }
+    return sMan;
   }
 }
 
 
 ///////////////////////////////////////////////////////////////////////////////
 
-DPMDetectionI::DPMDetectionI(ServiceManager *sman)
+DPMDetectionI::DPMDetectionI()
+  : mServiceMan( NULL )
 {
-    mServiceMan = sman;
 }
 
 DPMDetectionI::~DPMDetectionI()
 {
 }
 
-bool DPMDetectionI::checkExistenceDetectorData()
-{    
-  std::string tFilePath = getPathDetectorData();
-    if(fileExists(tFilePath))
-      return true;
-    else
-      return false;
+void DPMDetectionI::setServiceManager( ServiceManager* sman )
+{
+    mServiceMan = sman;
 }
 
-std::string DPMDetectionI::getPathDetectorData()
+/** try to read the trained model from the specified file.  The 
+ * path must be a file system path, not a CVAC path.
+ */
+bool DPMDetectionI::readModelFile( const string& archivefile )
 {
-    std::string tSearchStr = getName() + ".DetectorData"; //"DPM_ShipDetector_v1": this name should be changed manually in this file.
-    PropertiesPtr props = Application::communicator()->getProperties();
-    return props->getProperty(tSearchStr); //Should it be an absolute? 
+  if( !fileExists(archivefile))
+  {
+    localAndClientMsg(VLogger::ERROR, NULL, "Failed to initialize because the trained model "
+                      "cannot be found: %s\n", archivefile.c_str());
+    return false;
+  }
+
+  // get sandbox
+  string connectName = "TODO_fixme"; //getClientConnectionName(current);
+  string serviceName = mServiceMan->getServiceName();
+  string clientName = mServiceMan->getSandbox()->createClientName(serviceName,
+                                                                  connectName);                           
+  string clientDir = mServiceMan->getSandbox()->createClientDir(clientName);
+
+  // unarchive model file
+  DetectorDataArchive dda;
+  dda.unarchive( archivefile, clientDir );
+  // This detector only needs an XML file
+  string modelXML = dda.getFile(RESID);
+  if (modelXML.empty())
+  {
+      localAndClientMsg(VLogger::ERROR, NULL,
+                        "Could not find XML result file in zip file.\n");
+      return false;
+  }
+  // Get only the filename part
+  modelXML = getFileName(modelXML);
+  
+  boost::scoped_ptr<Model> fsmodel;   
+  fsmodel.reset(new FileStorageModel);                
+  if(!fsmodel->deserialize( modelXML )) 
+  {
+      localAndClientMsg(VLogger::ERROR, NULL, "Failed to initialize because the file %s has a problem\n",
+                        modelXML.c_str());
+      return false;
+  }
+
+  pbd.distributeModel(*fsmodel);
+
+  return true;
 }
-                          
+      
 bool DPMDetectionI::initialize(const DetectorProperties& props, const FilePath& trainedModel,
                                const Current& current)
 {
@@ -111,126 +162,85 @@ bool DPMDetectionI::initialize(const DetectorProperties& props, const FilePath& 
 
     // todo: initialize props
 
-    if(trainedModel.filename.empty())  //if there is no specific detectorData
     {
-      if(checkExistenceDetectorData())
+      string modelfile = mServiceMan->getModelFileFromConfig();
+      printf("got modelfile from config: %s\n", modelfile.c_str());
+    }
+
+    // a model presented during the "process" call takes precedence
+    //  over one specified in a config file
+    if(!trainedModel.filename.empty())
+    {
+      string modelfile = getFSPath( trainedModel );
+      bool success = readModelFile( modelfile );
+      if (!success)
       {
-        archiveFilePath = getPathDetectorData();
-        expandedSubfolder = getFileDirectory(archiveFilePath) + "_";  
-        // TODO        fileNameforUsageOrders = expandSeq_fromFile(archiveFilePath, expandedSubfolder);
-        fileNameToBeUsed = fileNameforUsageOrders[0];  //only the first xml file will be used
-      }
-      else
-      {
-        localAndClientMsg(VLogger::ERROR, NULL, "Failed to initialize because there is no detector data\n");
+        localAndClientMsg(VLogger::ERROR, NULL, "Failed to initialize because explicitly specified trained model "
+                          "cannot be found: %s\n", modelfile.c_str());
         return false;
       }
     }
-    else  //if detectorData is not empty
-    {
-      // Get the default CVAC data directory as defined in the config file
-      m_CVAC_DataDir = mServiceMan->getDataDir();
+    // TODO assert( have model );
 
-      // Use utils un-compression to get zip file names
-      // Filepath is relative to 'CVAC_DataDir'     
-      if ( (trainedModel.directory.relativePath.length() > 1 
-        && trainedModel.directory.relativePath[1] == ':' )||
-        trainedModel.directory.relativePath[0] == '/' ||
-        trainedModel.directory.relativePath[0] == '\\')
-      {  // absolute path
-        // TODO: don't permit absolute paths!  get rid of if/else and just
-        // check in getFSPath that it's relative
-        archiveFilePath = trainedModel.directory.relativePath + "/" + trainedModel.filename;
-      } 
-      else
-      { // prepend our prefix, this routine is copied from getFSPath function in BowICEI.cpp
-        if (trainedModel.directory.relativePath.empty())
-          archiveFilePath = m_CVAC_DataDir+"/"+trainedModel.filename;
-        else
-          archiveFilePath = m_CVAC_DataDir+"/"+trainedModel.directory.relativePath+"/"+trainedModel.filename;
-      }
-
-      expandedSubfolder = archiveFilePath + "_";  //getName(current)
-      // TODO      fileNameforUsageOrders = expandSeq_fromFile(archiveFilePath, expandedSubfolder);
-      fileNameToBeUsed = fileNameforUsageOrders[0];  //only the first xml file will be used          
-    }
-
-    boost::scoped_ptr<Model> fsmodel;	
-    fsmodel.reset(new FileStorageModel);		
-    std::string tStrXML = expandedSubfolder+ "/" + fileNameToBeUsed;
-    if(!fsmodel->deserialize(tStrXML)) 
-    {
-      localAndClientMsg(VLogger::ERROR, NULL, "Failed to initialize because the file %s has a problem\n",
-                        tStrXML.c_str());
-      return false;
-    }
-
-    pbd.distributeModel(*fsmodel);
     return true;
 }
 
-
-
 std::string DPMDetectionI::getName(const Current& current)
 {
-  return getName();
+  return mServiceMan->getServiceName();
 }
 
-std::string DPMDetectionI::getName()
-{
-	return "DPM_Detector";
-}
 std::string DPMDetectionI::getDescription(const Current& current)
 {
-	return "Deformable Parts Model";
+        return "Deformable Parts Model";
 }
 
 DetectorProperties DPMDetectionI::getDetectorProperties(const Current& current)
-{	
-	return props;
+{       
+        return props;
 }
 
 ResultSet DPMDetectionI::processSingleImg(DetectorPtr detector,const char* fullfilename)
-{	
-	ResultSet _resSet;	
+{       
+        ResultSet _resSet;      
 
-	// Detail the current file being processed (DEBUG_1)
-	std::string _ffullname = std::string(fullfilename);
+        // Detail the current file being processed (DEBUG_1)
+        std::string _ffullname = std::string(fullfilename);
 
-	localAndClientMsg(VLogger::DEBUG_1, NULL, "==========================\n");
-	localAndClientMsg(VLogger::DEBUG_1, NULL, "%s is processing.\n", _ffullname.c_str());
-	DPMDetectionI* _pDPM = static_cast<DPMDetectionI*>(detector.get());
+        localAndClientMsg(VLogger::DEBUG_1, NULL, "==========================\n");
+        localAndClientMsg(VLogger::DEBUG_1, NULL, "%s is processing.\n", _ffullname.c_str());
+        DPMDetectionI* _pDPM = static_cast<DPMDetectionI*>(detector.get());
 
-	cv::Mat _depth;
-	cv::Mat _img = cv::imread(_ffullname.c_str());
-	if (_img.empty())
-	{
-		localAndClientMsg(VLogger::WARN, NULL, "Failed to detect because the file %s does not exist\n",_ffullname.c_str());
-		return _resSet;
-	}
-	std::vector<Candidate> _candidates;	
+        cv::Mat _depth;
+        cv::Mat _img = cv::imread(_ffullname.c_str());
+        if (_img.empty())
+        {
+                localAndClientMsg(VLogger::WARN, NULL, "Failed to detect because the file %s does not exist\n",_ffullname.c_str());
+                return _resSet;
+        }
+        std::vector<Candidate> _candidates;     
         float confidence = 0.0f;
-	_pDPM->pbd.detect(_img, _depth, _candidates);
+        _pDPM->pbd.detect(_img, _depth, _candidates);
 
 
-	localAndClientMsg(VLogger::DEBUG_1, NULL, "# of Candidates for %s: %d\n", _ffullname.c_str(), _candidates.size());
+        localAndClientMsg(VLogger::DEBUG_1, NULL, "# of Candidates for %s: %d\n", _ffullname.c_str(), _candidates.size());
 
-	bool result = ((_candidates.size()>0)?true:false);	//this threshold can be adjusted for obtaining a strict result
-	string result_statement = (result)?"Positive":"Negative";
-	localAndClientMsg(VLogger::DEBUG_1, NULL, "Detection, %s as Class: %s\n", _ffullname.c_str(),result_statement.c_str());
+        bool result = ((_candidates.size()>0)?true:false);      //this threshold can be adjusted for obtaining a strict result
+        string result_statement = (result)?"Positive":"Negative";
+        localAndClientMsg(VLogger::DEBUG_1, NULL, "Detection, %s as Class: %s\n", _ffullname.c_str(),result_statement.c_str());
 
 
-	Result _tResult;
-	_tResult.original = NULL;	//it would be updated in the function processRunSet
-	Labelable *labelable = new Labelable();
-	labelable->confidence = confidence;
-	labelable->lab.hasLabel = true;
-	labelable->lab.name = result_statement;	
+        Result _tResult;
+        _tResult.original = NULL;       //it would be updated in the function processRunSet
+        Labelable *labelable = new Labelable();
+        labelable->confidence = confidence;
+        labelable->lab.hasLabel = true;
+        labelable->lab.name = result_statement; 
 
-	_tResult.foundLabels.push_back(labelable);
-	_resSet.results.push_back(_tResult);
-	
-	return _resSet;
+        _tResult.foundLabels.push_back(labelable);
+        _resSet.results.push_back(_tResult);
+        
+        return _resSet;
 }
 
 void DPMDetectionI::process(const Identity &client,const RunSet& runset,

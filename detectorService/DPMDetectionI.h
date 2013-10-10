@@ -45,7 +45,6 @@
 #include <IceBox/IceBox.h>
 #include <IceUtil/UUID.h>
 #include <util/processRunSet.h>
-#include <util/ServiceMan.h>
 
 //#include <opencv2/opencv.hpp>
 
@@ -54,12 +53,14 @@
 #include <FileStorageModel.hpp>
 #include <Visualize.hpp> //only for visualization of results
 
+class cvac::ServiceManager;
 
 class DPMDetectionI : public cvac::Detector
 {
 public:
-    DPMDetectionI(cvac::ServiceManager *servm);
+    DPMDetectionI();
     ~DPMDetectionI();
+    void setServiceManager( cvac::ServiceManager* sman );
 
     std::string m_CVAC_DataDir; // Store an absolute path to the detector data files
 
@@ -72,8 +73,8 @@ public:
     virtual std::string getName(const ::Ice::Current& current);
     virtual std::string getDescription(const ::Ice::Current& current);
     virtual ::cvac::DetectorProperties getDetectorProperties(const ::Ice::Current& current);
-    std::string getName();
     bool checkExistenceDetectorData();
+    bool readModelFile( const std::string& modelfile );
 
 private:
     cvac::ServiceManager *mServiceMan;
