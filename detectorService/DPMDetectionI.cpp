@@ -67,23 +67,8 @@ extern "C"
   ICE_DECLSPEC_EXPORT IceBox::Service* create(CommunicatorPtr communicator)
   {
     DPMDetectionI *dpm = new DPMDetectionI();
-    ServiceManagerI *sMan = new ServiceManagerI( dpm );
+    ServiceManagerI *sMan = new ServiceManagerI( dpm, dpm );
     dpm->setServiceManager( sMan );
-
-    // check if the config.service file contains a trained model; if so, read it.
-    string modelfile;// = sMan->getModelFileFromConfig();
-    if (!modelfile.empty())
-    {
-      bool success = dpm->readModelFile( modelfile );
-      if (!success)
-      {
-        localAndClientMsg(VLogger::ERROR, NULL, "Failed to initialize because trained model "
-                          "specified in config file cannot be found: %s\n", modelfile.c_str());
-        delete sMan;
-        delete dpm;
-        return NULL;
-      }
-    }
     return sMan;
   }
 }
@@ -104,6 +89,29 @@ void DPMDetectionI::setServiceManager( ServiceManager* sman )
 {
     mServiceMan = sman;
 }
+
+void DPMDetectionI::starting()
+{
+  // check if the config.service file contains a trained model; if so, read it.
+  string modelfile = mServiceMan->getModelFileFromConfig();
+
+  if (modelfile.empty())
+  {
+    localAndClientMsg(VLogger::DEBUG, NULL, "No trained model file specified in service config.\n" );
+  }
+  else
+  {
+    localAndClientMsg(VLogger::DEBUG, NULL, "Will read trained model file as specified in service config: %s\n",
+                      modelfile.c_str());
+    gotModel = readModelFile( modelfile );
+    if (!gotModel)
+    {
+      localAndClientMsg(VLogger::WARN, NULL, "Failed to read pre-configured trained model "
+                        "from: %s; will continue but now require client to send trained model\n",
+                        modelfile.c_str());
+    }
+  }
+}  
 
 /** try to read the trained model from the specified file.  The 
  * path must be a file system path, not a CVAC path.
@@ -128,7 +136,7 @@ bool DPMDetectionI::readModelFile( const string& archivefile )
   DetectorDataArchive dda;
   dda.unarchive( archivefile, clientDir );
   // This detector only needs an XML file
-  string modelXML = dda.getFile(RESID);
+  string modelXML = dda.getFile( "result.xml" );
   if (modelXML.empty())
   {
       localAndClientMsg(VLogger::ERROR, NULL,
@@ -162,25 +170,28 @@ bool DPMDetectionI::initialize(const DetectorProperties& props, const FilePath& 
 
     // todo: initialize props
 
-    {
-      string modelfile = mServiceMan->getModelFileFromConfig();
-      printf("got modelfile from config: %s\n", modelfile.c_str());
-    }
-
     // a model presented during the "process" call takes precedence
     //  over one specified in a config file
-    if(!trainedModel.filename.empty())
+    if(trainedModel.filename.empty())
+    {
+      if (!gotModel)
+      {
+        localAndClientMsg(VLogger::ERROR, NULL, "No trained model available, aborting.\n" );
+        return false;
+      }
+      // ok, go on with pre-configured model
+    }
+    else
     {
       string modelfile = getFSPath( trainedModel );
-      bool success = readModelFile( modelfile );
-      if (!success)
+      gotModel = readModelFile( modelfile );
+      if (!gotModel)
       {
         localAndClientMsg(VLogger::ERROR, NULL, "Failed to initialize because explicitly specified trained model "
-                          "cannot be found: %s\n", modelfile.c_str());
+                          "cannot be found or loaded: %s\n", modelfile.c_str());
         return false;
       }
     }
-    // TODO assert( have model );
 
     return true;
 }
@@ -254,15 +265,15 @@ void DPMDetectionI::process(const Identity &client,const RunSet& runset,
   bool initialized = this->initialize( props, model, current );
   if (!initialized)
   {
-    localAndClientMsg(VLogger::ERROR, NULL, "Detector not initialized, not processing.");
+    localAndClientMsg(VLogger::ERROR, NULL, "Detector not initialized, not processing.\n");
     return;
   }
   
   try {
-    processRunSet(this, _callback, func, runset, m_CVAC_DataDir, mServiceMan);
+    processRunSet(this, _callback, func, runset, mServiceMan->getDataDir(), mServiceMan);
   }
   catch (exception e) {
-    localAndClientMsg(VLogger::ERROR, NULL, "$$$ Detector could not process given file-path.");
+    localAndClientMsg(VLogger::ERROR, NULL, "Detector could not process given file-path.\n");
   }
 }
 
