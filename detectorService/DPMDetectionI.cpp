@@ -58,8 +58,8 @@ extern "C"
   /**
    * Create the detector service via a ServiceManager.  The 
    * ServiceManager handles all the icebox interactions.  Pass the constructed
-   * detector instance as well as the service name to the ServiceManager.
-   * The name is obtained from the config.icebox file as follows. Given this
+   * detector instance to the ServiceManager.  The ServiceManager obtains the
+   * service name from the config.icebox file as follows. Given this
    * entry:
    * IceBox.Service.BOW_Detector=bowICEServer:create --Ice.Config=config.service
    * ... the name of the service is BOW_Detector.
@@ -78,6 +78,7 @@ extern "C"
 
 DPMDetectionI::DPMDetectionI()
   : mServiceMan( NULL )
+  , gotModel( false )
 {
 }
 
@@ -136,7 +137,7 @@ bool DPMDetectionI::readModelFile( const string& archivefile )
   DetectorDataArchive dda;
   dda.unarchive( archivefile, clientDir );
   // This detector only needs an XML file
-  string modelXML = dda.getFile( "result.xml" );
+  string modelXML = dda.getFile( XMLID );
   if (modelXML.empty())
   {
       localAndClientMsg(VLogger::ERROR, NULL,
@@ -144,7 +145,7 @@ bool DPMDetectionI::readModelFile( const string& archivefile )
       return false;
   }
   // Get only the filename part
-  modelXML = getFileName(modelXML);
+  //modelXML = getFileName(modelXML);  TODO: why???  it doesn't work without the path. matz.
   
   boost::scoped_ptr<Model> fsmodel;   
   fsmodel.reset(new FileStorageModel);                
