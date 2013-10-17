@@ -1,4 +1,5 @@
-PROJECT (DPMServerDetection)
+SET( APP_NAME DPM_Detector )
+PROJECT ( ${APP_NAME} )
 
 WRAP_SLICE(SLICE_FILES
            ${CVAC_ROOT_DIR}/src/Data.ice
@@ -23,13 +24,13 @@ SET(INCLUDE_DIRS
 
 INCLUDE_DIRECTORIES(${INCLUDE_DIRS})
 
-ADD_LIBRARY(DPMServerDetection SHARED
+ADD_LIBRARY( ${APP_NAME} SHARED
             ${SOURCE_FILES}
             ${HEADER_FILES}
             ${SLICE_FILES}
             )
 
-TARGET_LINK_LIBRARIES(DPMServerDetection	
+TARGET_LINK_LIBRARIES( ${APP_NAME} 	
     dpm
     utils
     ${ICE_LIBRARIES} ${ICE_BOX_LIBRARY}
@@ -38,12 +39,12 @@ TARGET_LINK_LIBRARIES(DPMServerDetection
           
 IF( NOT ${BUILD_3RDPARTY_PACKAGE} )
 IF(WIN32)
-INSTALL( TARGETS DPMServerDetection
+INSTALL( TARGETS ${APP_NAME}
                DESTINATION bin
                COMPONENT Runtime
              )
 ELSE (WIN32)
-INSTALL( TARGETS DPMServerDetection
+INSTALL( TARGETS ${APP_NAME}
                DESTINATION lib
                COMPONENT Runtime
              )
