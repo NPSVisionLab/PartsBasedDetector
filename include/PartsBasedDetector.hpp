@@ -172,6 +172,7 @@ public:
 	void detect(const cv::Mat& im, std::vector<Candidate>& candidates);
 	void detect(const cv::Mat& im, const cv::Mat& depth, std::vector<Candidate>& candidates);
 	void distributeModel(Model& model);
+	void distributeModel(Model& model, float threshold);
 };
 
 #endif /* PARTSBASEDDETECTOR_HPP_ */

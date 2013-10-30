@@ -111,6 +111,17 @@ void PartsBasedDetector<T>::detect(const Mat& im, const Mat& depth, vectorCandid
  */
 template<typename T>
 void PartsBasedDetector<T>::distributeModel(Model& model) {
+	
+	distributeModel(model, 1.0f);
+}
+
+/*! @brief Distribute the model parameters to the PartsBasedDetector classes
+ *
+ * @param model the monolithic model containing the deserialization of all model parameters
+ * @param threshold the multiplication value to adjust the matching threshold value
+ */
+template<typename T>
+void PartsBasedDetector<T>::distributeModel(Model& model, float threshold) {
 
 	// the name of the Part detector
 	name_ = model.name();
@@ -133,7 +144,7 @@ void PartsBasedDetector<T>::distributeModel(Model& model) {
 			model.anchors(), model.biasid(), model.filterid(), model.defid(), model.parentid());
 
 	// initialize the dynamic program
-	dp_ = DynamicProgram<T>(model.thresh());
+	dp_ = DynamicProgram<T>(model.thresh()*threshold);
 
 }
 
