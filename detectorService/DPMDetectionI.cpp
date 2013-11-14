@@ -184,7 +184,7 @@ bool DPMDetectionI::initialize(const DetectorProperties& props, const FilePath& 
     }
     else
     {
-      string modelfile = getFSPath( trainedModel );
+      string modelfile = getFSPath( trainedModel, mServiceMan->getDataDir() );
       gotModel = readModelFile( modelfile );
       if (!gotModel)
       {
