@@ -104,12 +104,13 @@ void DPMDetectionI::starting()
   {
     localAndClientMsg(VLogger::DEBUG, NULL, "Will read trained model file as specified in service config: %s\n",
                       modelfile.c_str());
-    gotModel = readModelFile( modelfile );
+    string fullModel =  mServiceMan->getDataDir() + "/" + modelfile;
+    gotModel = readModelFile( fullModel );
     if (!gotModel)
     {
       localAndClientMsg(VLogger::WARN, NULL, "Failed to read pre-configured trained model "
                         "from: %s; will continue but now require client to send trained model\n",
-                        modelfile.c_str());
+                        fullModel.c_str());
     }
   }
 }  
@@ -119,6 +120,7 @@ void DPMDetectionI::starting()
  */
 bool DPMDetectionI::readModelFile( const string& archivefile )
 {
+  
   if( !fileExists(archivefile))
   {
     localAndClientMsg(VLogger::ERROR, NULL, "Failed to initialize because the trained model "
@@ -184,7 +186,7 @@ bool DPMDetectionI::initialize(const DetectorProperties& props, const FilePath& 
     }
     else
     {
-      string modelfile = getFSPath( trainedModel );
+      string modelfile = getFSPath( trainedModel, mServiceMan->getDataDir() );
       gotModel = readModelFile( modelfile );
       if (!gotModel)
       {
