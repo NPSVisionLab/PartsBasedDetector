@@ -121,8 +121,6 @@ bool DPMDetectionI::readModelFile( const string& archivefile )
 {
   if( !fileExists(archivefile))
   {
-    localAndClientMsg(VLogger::ERROR, NULL, "Failed to initialize because the trained model "
-                      "cannot be found: %s\n", archivefile.c_str());
     return false;
   }
 
@@ -184,11 +182,12 @@ bool DPMDetectionI::initialize(const DetectorProperties& props, const FilePath& 
     }
     else
     {
-      string modelfile = getFSPath( trainedModel );
+      string modelfile = getFSPath( trainedModel, mServiceMan->getDataDir() );
       gotModel = readModelFile( modelfile );
       if (!gotModel)
       {
-        localAndClientMsg(VLogger::ERROR, NULL, "Failed to initialize because explicitly specified trained model "
+        localAndClientMsg(VLogger::ERROR, NULL,
+                          "Failed to initialize because explicitly specified trained model "
                           "cannot be found or loaded: %s\n", modelfile.c_str());
         return false;
       }
