@@ -104,7 +104,14 @@ void DPMDetectionI::starting()
   {
     localAndClientMsg(VLogger::DEBUG, NULL, "Will read trained model file as specified in service config: %s\n",
                       modelfile.c_str());
-    string fullModel =  mServiceMan->getDataDir() + "/" + modelfile;
+    string fullModel;
+    if (pathAbsolute(modelfile))
+    { // model file is absolute so don't add datadir
+	fullModel = modelfile;
+    }else
+    {
+	fullModel =  mServiceMan->getDataDir() + "/" + modelfile;
+    }
     gotModel = readModelFile( fullModel );
     if (!gotModel)
     {
