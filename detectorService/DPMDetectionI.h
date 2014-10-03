@@ -92,9 +92,10 @@ private:
   std::string filepathDefaultModel;
 
   std::vector<Candidate> detectObjects(const cvac::CallbackHandlerPrx& _callback,
-                                      const cvac::Labelable& _lbl);
+                                      const cvac::Labelable& _lbl,
+                                      bool& _resFlag,std::string& _resStr);
   void addResult(cvac::Result& _res,cvac::Labelable& _converted,
-                 std::vector<Candidate> _candidates);
+                 std::vector<Candidate> _candidates,bool _resFlag,std::string _resStr);
 
 //     static cvac::ResultSet processSingleImg(cvac::DetectorPtr detector,const char* fullfilename);    
 //     std::string getPathDetectorData();
