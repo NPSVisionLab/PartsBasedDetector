@@ -265,8 +265,10 @@ void DPMDetectionI::process(const Ice::Identity &client,
 
     cvac::Labelable& labelable = *(mRunsetIterator.getNext());
     {
-      std::vector<Candidate> objects = detectObjects( callback, labelable );
-      addResult(mRunsetIterator.getCurrentResult(),labelable,objects);      
+      bool _resFlag(false);
+      std::string _resStr;
+      std::vector<Candidate> objects = detectObjects( callback, labelable, _resFlag,_resStr);
+      addResult(mRunsetIterator.getCurrentResult(),labelable,objects,_resFlag,_resStr);      
     }
   }  
   callback->foundNewResults(mRunsetIterator.getResultSet());
@@ -277,41 +279,70 @@ void DPMDetectionI::process(const Ice::Identity &client,
  *  return the objects (rectangles) that were found
  */
 std::vector<Candidate> DPMDetectionI::detectObjects(const CallbackHandlerPrx& _callback,
-                                                    const cvac::Labelable& _lbl)
+                                                    const cvac::Labelable& _lbl,
+                                                    bool& _resFlag,
+                                                    std::string& _resStr)
 {
   string tfilepath = getFSPath( _lbl.sub.path, m_CVAC_DataDir );
 
   localAndClientMsg(VLogger::DEBUG, _callback, "while detecting objects in %s\n",
                     tfilepath.c_str());
 
+  _resStr = "";
+  _resFlag = false;
+
   std::vector<Candidate> _candidates;
   cv::Mat _depth;
   cv::Mat _img = cv::imread(tfilepath.c_str());
-  if (_img.empty())
+  if (_img.empty())//no file or not supported format
   {
-    localAndClientMsg(VLogger::WARN, NULL,
-                      "Failed to detect because the file %s does not exist\n",tfilepath.c_str());
+    std::string msgout;
+    msgout = "The file \"" + tfilepath + 
+      "\" has a problem (no file or not supported format). "+
+      "So, it will not be processed.\n";
+    localAndClientMsg(VLogger::WARN, NULL,msgout.c_str());
+    _resStr = "Error: no file or not supported format";
+    _resFlag = false;
   }
   else
-  {
+  { 
     float confidence = 1.0f;
     DPMDetectionI* _pDPM = static_cast<DPMDetectionI*>(this);
     _pDPM->pbd.detect(_img, _depth, _candidates);
+    _resStr = "";
+    _resFlag = true;
   }
   return _candidates; 
 }
 
 void DPMDetectionI::addResult(cvac::Result& _res,
                               cvac::Labelable& _converted,
-                              std::vector<Candidate> _candidates)
+                              std::vector<Candidate> _candidates,
+                              bool _resFlag,std::string _resStr)
 {
   LabelablePtr labelable = new Labelable();
-
-  bool result = ((_candidates.size()>0)?true:false);
-  labelable->lab.name = (result)?"positive":"negative";
-  labelable->confidence = 1.0f;//ToBeUpdated
-  labelable->lab.hasLabel = true;
-
+  
+  if(!_resFlag)//when there is a problem
+  {
+    labelable->lab.name = _resStr;
+    labelable->confidence = 1.0f;
+    labelable->lab.hasLabel = false;
+  }
+  else  //when the input file is processed without a problem
+  {
+    if(_candidates.size()<1)
+    {
+      labelable->lab.name = "negative";
+      labelable->confidence = 1.0f;
+      labelable->lab.hasLabel = true;
+    }
+    else
+    {
+      labelable->lab.name = "positive";
+      labelable->confidence = 1.0f;
+      labelable->lab.hasLabel = true;
+    }
+  }
   _res.foundLabels.push_back(labelable);
 }
 
