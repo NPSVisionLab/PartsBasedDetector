@@ -283,7 +283,9 @@ std::vector<Candidate> DPMDetectionI::detectObjects(const CallbackHandlerPrx& _c
                                                     bool& _resFlag,
                                                     std::string& _resStr)
 {
-  string tfilepath = getFSPath( _lbl.sub.path, m_CVAC_DataDir );
+  FilePath fpath = RunSetWrapper::getFilePath(_lbl);
+  string tfilepath = getFSPath( fpath, m_CVAC_DataDir );
+
 
   localAndClientMsg(VLogger::DEBUG, _callback, "while detecting objects in %s\n",
                     tfilepath.c_str());
