@@ -45,7 +45,10 @@
 #include <IceBox/IceBox.h>
 #include <IceUtil/UUID.h>
 #include <util/processRunSet.h>
+#include <util/ServiceMan.h>
 #include <util/ServiceManI.h>
+#include <util/RunSetIterator.h>
+#include <util/DetectorDataArchive.h>
 
 //#include <opencv2/opencv.hpp>
 
@@ -57,33 +60,47 @@
 class DPMDetectionI : public cvac::Detector, public cvac::StartStop
 {
 public:
-    DPMDetectionI();
-    ~DPMDetectionI();
-    void setServiceManager( cvac::ServiceManager* sman );
+  DPMDetectionI();
+  ~DPMDetectionI();
+
+  std::string m_CVAC_DataDir; // Store an absolute path to the detector data files
 
 public:
-    virtual void process(const Ice::Identity &client, const ::cvac::RunSet& runset,
-                         const ::cvac::FilePath& model, const ::cvac::DetectorProperties& props,
-                         const ::Ice::Current& current);
-    virtual bool cancel(const Ice::Identity &client, const ::Ice::Current& current);
-    virtual std::string getName(const ::Ice::Current& current);
-    virtual std::string getDescription(const ::Ice::Current& current);
-    virtual ::cvac::DetectorProperties getDetectorProperties(const ::Ice::Current& current);
-    bool checkExistenceDetectorData();
-    bool readModelFile( const std::string& modelfile );
+  virtual void process(const Ice::Identity &client,const ::cvac::RunSet& runset,
+                       const ::cvac::FilePath &detectorData,
+                       const ::cvac::DetectorProperties &props,
+                       const ::Ice::Current& current);
+  virtual std::string getName(const ::Ice::Current& current);
+  virtual std::string getDescription(const ::Ice::Current& current);
+  virtual bool cancel(const Ice::Identity &client, const ::Ice::Current& current);
+  virtual cvac::DetectorProperties getDetectorProperties(const Ice::Current& current);
+  void setServiceManager(cvac::ServiceManagerI *sman);
+  virtual void starting();
+  virtual void stopping();
 
-    virtual void starting();
+protected:
+  bool initialize(cvac::DetectorDataArchive* _dda,
+                  const ::cvac::FilePath &file,
+                  const::Ice::Current &current);
+  bool isInitialized();
+  virtual void destroy(const ::Ice::Current& current);
 
 private:
-    cvac::ServiceManager      *mServiceMan;
-    PartsBasedDetector<double> pbd;
-    bool                       gotModel;
-    cvac::DetectorProperties   props;
-    
-    static cvac::ResultSet processSingleImg(cvac::DetectorPtr detector,const char* fullfilename);    
-    std::string getPathDetectorData();
-    bool initialize(const ::cvac::DetectorProperties& props,
-                    const ::cvac::FilePath& model, const ::Ice::Current& current);
+  cvac::ServiceManager *mServiceMan;
+  PartsBasedDetector<double> pbd;  
+  bool  fInitialized;
+  std::string filepathDefaultModel;
+
+  std::vector<Candidate> detectObjects(const cvac::CallbackHandlerPrx& _callback,
+                                      const cvac::Labelable& _lbl,
+                                      bool& _resFlag,std::string& _resStr);
+  void addResult(cvac::Result& _res,cvac::Labelable& _converted,
+                 std::vector<Candidate> _candidates,bool _resFlag,std::string _resStr);
+
+//     static cvac::ResultSet processSingleImg(cvac::DetectorPtr detector,const char* fullfilename);    
+//     std::string getPathDetectorData();
+//     bool initialize(const ::cvac::DetectorProperties& props,
+//                     const ::cvac::FilePath& model, const ::Ice::Current& current);
 };
 
 #endif //_DPMDetectionI_H__
